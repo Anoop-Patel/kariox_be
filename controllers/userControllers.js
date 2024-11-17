@@ -13,12 +13,25 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ error: "Mobile number already registered" });
     }
 
-    // Create a new user
-    const user = new User({ name, mobile, password, address, age });
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create a new user with hashed password
+    const user = new User({
+      name,
+      mobile,
+      password: hashedPassword,
+      address,
+      age,
+    });
     await user.save();
 
-    res.status(201).json({ message: "User registered successfully", user });
+    // Exclude password from response
+    const { password: _, ...userWithoutPassword } = user.toObject();
+
+    res.status(201).json({ message: "User registered successfully", user: userWithoutPassword });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: "Failed to register user" });
   }
 };
@@ -50,16 +63,13 @@ const loginUser = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    // Include isAdmin in the response
+    // Exclude password from response
+    const { password: _, ...userWithoutPassword } = user.toObject();
+
     res.status(200).json({
       message: "Login successful",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        mobile: user.mobile,
-        isAdmin,
-      },
+      user: { ...userWithoutPassword, isAdmin },
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to login" });
